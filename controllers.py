@@ -7,6 +7,7 @@ from io import StringIO
 from models import FuturesDataModel
 from headers import *
 from schema import *
+import json
 
 class FuturesDataController:
     def __init__(self):
@@ -60,7 +61,38 @@ class FuturesDataController:
             print(f"抓取數據時發生錯誤：{e}")
             return None
            
-        
+    def crawler_twse_data(self,date:str):
+        #url = "https://www.twse.com.tw/zh/indices/taiex/mi-5min-hist.html"
+        #url = "https://www.twse.com.tw/indicesReport/MI_5MINS_HIST"
+        url = "https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST"
+        params = {
+            'response':'json',
+            'date':f'{date}'
+        }
+        print(f"爬取日期: {date}")
+
+        try:  
+            response = requests.get(url,data=params,headers=TWSE_DOWN)
+            response.raise_for_status() #檢查請求是否成功
+
+            data = json.loads(response.text)
+            df = pd.DataFrame(data['data'],columns=['date','open','high','low','close'])
+            #去除符號轉float
+            df.iloc[:, 1:] = df.iloc[:, 1:].apply(lambda x: x.str.replace(',', '').astype(float), axis=1)
+
+            #日期格式轉換
+            df[['year', 'month', 'day']] = df['date'].str.split('/', expand=True)
+            df['year'] = df['year'].astype(int) + 1911
+            df['date'] = df['year'].astype(str) + '-' + df['month'].str.zfill(2) + '-' + df['day'].str.zfill(2)
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.drop(columns=['year','month','day'])
+
+            return df
+
+        except Exception as e:
+            print(f"抓取數據時發生錯誤：{e}")
+            return None
+
 
     def update_taifex_data(self,date):
         df_data = self.crawler_taifex_data(date)
