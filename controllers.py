@@ -65,6 +65,7 @@ class FuturesDataController:
         #url = "https://www.twse.com.tw/zh/indices/taiex/mi-5min-hist.html"
         #url = "https://www.twse.com.tw/indicesReport/MI_5MINS_HIST"
         url = "https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST"
+        url2 = "https://www.twse.com.tw/rwd/zh/TAIEX/MFI94U"
         params = {
             'response':'json',
             'date':f'{date}'
@@ -74,24 +75,71 @@ class FuturesDataController:
         try:  
             response = requests.get(url,data=params,headers=TWSE_DOWN)
             response.raise_for_status() #檢查請求是否成功
+            response2 =requests.get(url2,data=params,headers=TWSE_DOWN)
+            response2.raise_for_status()
+            
 
             data = json.loads(response.text)
+            data2 = json.loads(response2.text)
             df = pd.DataFrame(data['data'],columns=['date','open','high','low','close'])
+            df2 = pd.DataFrame(data2['data'],columns=['date','tri_close'])
             #去除符號轉float
             df.iloc[:, 1:] = df.iloc[:, 1:].apply(lambda x: x.str.replace(',', '').astype(float), axis=1)
+            df2.iloc[:,1:] = df2.iloc[:,1:].apply(lambda x: x.str.replace(',','').astype(float), axis=1)
+            merged_df = pd.merge(df,df2,on='date',how='outer')
 
-            #日期格式轉換
-            df[['year', 'month', 'day']] = df['date'].str.split('/', expand=True)
-            df['year'] = df['year'].astype(int) + 1911
-            df['date'] = df['year'].astype(str) + '-' + df['month'].str.zfill(2) + '-' + df['day'].str.zfill(2)
-            df['date'] = pd.to_datetime(df['date'])
-            df = df.drop(columns=['year','month','day'])
 
-            return df
+            #merged_df日期格式轉換
+            merged_df[['year', 'month', 'day']] = merged_df['date'].str.split('/', expand=True)
+            merged_df['year'] = merged_df['year'].astype(int) + 1911
+            merged_df['date'] = merged_df['year'].astype(str) + '-' + merged_df['month'].str.zfill(2) + '-' + merged_df['day'].str.zfill(2)
+            merged_df['date'] = pd.to_datetime(merged_df['date'])
+            merged_df = merged_df.drop(columns=['year','month','day'])
+
+            return merged_df
 
         except Exception as e:
             print(f"抓取數據時發生錯誤：{e}")
             return None
+
+    """
+    date = 20240101
+    """
+
+    def update_twse_data(self,date):
+        df_data = self.crawler_twse_data(date)
+        if df_data is None or df_data.empty:
+            return "無法獲取證交所數據或數據為空"
+        
+        #轉成MongoDB格式
+        data = {
+            "querydate":df_data['date'],
+            "taiex":[]
+        }
+
+        for _,row in df_data.iterrows():
+            contract = {
+                "date":row["date"],
+                "open":row["open"],
+                "high":row["high"],
+                "low":row["low"],
+                "close":row["close"],
+                "tri_close":row["tri_close"]
+            }
+
+        data["taiex"].append(contract)
+
+        if not data["taiex"]:
+            return "沒有有效的加權指數數據可以插入"
+        try:
+            self.model.connect_mongo()
+            success = self.model.save_to_mongo("findata","taiex",data)
+            return f"成功{'保存' if success else '更新'} {len(data['taiex'])} 條記錄到 MongoDB"
+        except Exception as e:
+            return f"保存到 MongoDB 時發生錯誤：{e}"
+        finally:
+            self.model.close_mongo()
+     
 
 
     def update_taifex_data(self,date):
