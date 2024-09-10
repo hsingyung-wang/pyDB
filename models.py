@@ -24,9 +24,9 @@ class FuturesDataModel:
             print(f"連接 MongoDB 失敗: {e}")
             raise
 
-    def transofrm_to_mongo_format(sefl,df,date):
+    def transofrm_to_mongo_format(self,df,date):
         data = {
-            "日期":datetime.strptime(date,"%Y/%m/%d"),
+            "date":datetime.strptime(date,"%Y/%m/%d"),
             "期貨契約":[]
         }
         for _, row in df.iterrows():
@@ -49,7 +49,9 @@ class FuturesDataModel:
             data["期貨契約"].append(contract)
 
             return data
-
+    """
+    dataframe,包含很多日期
+    """
     def save_to_mongo_by_dataframe(self,db_name:str,collection_name:str,data:pd.DataFrame,date):
         if not self.client:
             self.connect_mongo()
@@ -58,36 +60,39 @@ class FuturesDataModel:
         collection = db[collection_name]
         
         #檢查是否已存在該日期數據
-        date = data['日期']
-        existing_data = collection.find_one({'日期':date})
+        date = data['date']
+        existing_data = collection.find_one({'date':date})
         if existing_data:
             print(f"{date}的數據已存在,跳過存入")
             return
     
         
         data_dict = data.to_dict('records')
+        """
         for record in data_dict:
-            record['日期'] = datetime.strptime(date,"%Y/%m/%d")
-        
+            record['date'] = datetime.strptime(date,"%Y/%m/%d")
+        """
         try:
-            result = collection.insert_many(data)
+            result = collection.insert_many(data_dict)
             print(f"成功插入 {len(result.inserted_ids)} 條文檔")
         except Exception as e:
             print(f"插入數據時發生錯誤: {e}")
 
-    def save_to_mongo(self,db_name:str,collection_name:str,data):
-        if not data["期貨契約"]:
-            raise ValueError("期貨契約列表為空")
-        
+    """
+    一個日期的data:dictionary
+    """
+    def save_to_mongo(self,db_name:str,collection_name:str,data):    
         if not self.client:
             self.connect_mongo()
 
         db = self.client[db_name]
         collection = db[collection_name]
         
-        existing_data = collection.find_one({'日期': data['日期']})
+        existing_data = collection.find_one({'date': data['date']})
 
-        
+        if existing_data:
+            print(f"{data['date']}的數據已存在,跳過存入")
+            return
 
         try:
             result = collection.insert_one(data)
@@ -124,16 +129,16 @@ class FuturesDataModel:
 
         query={}
         if start_date and end_date:
-            query['日期'] = {
+            query['date'] = {
                 '$gte': datetime.strptime(start_date, "%Y/%m/%d"),
                 '$lte': datetime.strptime(end_date, "%Y/%m/%d")
             }
         elif start_date:
-            query['日期'] = {'$gte': datetime.strptime(start_date, "%Y/%m/%d")}
+            query['date'] = {'$gte': datetime.strptime(start_date, "%Y/%m/%d")}
         elif end_date:
-            query['日期'] = {'$lte': datetime.strptime(end_date, "%Y/%m/%d")}
+            query['date'] = {'$lte': datetime.strptime(end_date, "%Y/%m/%d")}
 
-        cursor = collection.find(query).sort("日期", ASCENDING).limit(limit)
+        cursor = collection.find(query).sort("date", ASCENDING).limit(limit)
         results = list(cursor)
         return results
 
