@@ -61,6 +61,7 @@ class FuturesDataController:
             for col in numeric_columns:
                 df_filter[col] = pd.to_numeric(df_filter[col].astype(str).str.replace(',', ''), errors='coerce')
             print("轉換成功")
+
             return df_filter
         except requests.RequestException as e:
             print(f"請求錯誤: {e}")
@@ -132,7 +133,7 @@ class FuturesDataController:
         print(f"爬取日期: {date}")
 
         try:  
-            response = requests.get(url,data=params,headers=TWSE_DOWN)
+            response = requests.post(url,data=params,headers=TWSE_DOWN)
             response.raise_for_status() #檢查請求是否成功
             #response2 =requests.get(url2,data=params,headers=TWSE_DOWN)
             #response2.raise_for_status()
@@ -177,7 +178,7 @@ class FuturesDataController:
         }
 
         try:
-            response =requests.get(url,data=params,headers=TWSE_DOWN)
+            response =requests.post(url,data=params,headers=TWSE_DOWN)
             response.raise_for_status()
             data = json.loads(response.text)
             df = pd.DataFrame(data['data'],columns=['date','tri_close'])
@@ -306,7 +307,7 @@ class FuturesDataController:
             success = self.model.save_to_mongo_by_dataframe("findata","twse_index",merged_df)
             return f"成功{'保存' if success else '更新'} {len(merged_df)} 條記錄到 MongoDB"
         except Exception as e:
-            return f"保存到 MongoDB 時發生錯誤：{e}"+f"{success}"
+            return f"保存到 MongoDB 時發生錯誤：{e}"
         finally:
             self.model.close_mongo()
     

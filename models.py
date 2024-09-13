@@ -4,6 +4,8 @@ from datetime import datetime
 import json
 from typing import Optional, List, Dict, Any
 import pandas as pd
+from pymongo import MongoClient, UpdateOne
+from pymongo.errors import BulkWriteError
 
 
 
@@ -52,29 +54,38 @@ class FuturesDataModel:
     """
     dataframe,包含很多日期
     """
-    def save_to_mongo_by_dataframe(self,db_name:str,collection_name:str,data:pd.DataFrame,date):
+    def save_to_mongo_by_dataframe(self,db_name:str,collection_name:str,data:pd.DataFrame):
         if not self.client:
             self.connect_mongo()
         
         db = self.client[db_name]
         collection = db[collection_name]
         
-        #檢查是否已存在該日期數據
-        date = data['date']
-        existing_data = collection.find_one({'date':date})
-        if existing_data:
-            print(f"{date}的數據已存在,跳過存入")
-            return
-    
+        #檢查是否已存在該日期數據(多個日期)
+        data['date'] = pd.to_datetime(data['date'])
+        existing_dates = set(collection.distinct('date'))
+        df_dates = set(data['date'])
+        new_dates = df_dates - existing_dates
         
-        data_dict = data.to_dict('records')
-        """
-        for record in data_dict:
-            record['date'] = datetime.strptime(date,"%Y/%m/%d")
-        """
+
+        if not new_dates:
+            print("沒有新的日期需要插入。")
+            return None
+        
+        new_data = data[data['date'].isin(new_dates)]
+
+        operations = []
+        for _, row in new_data.iterrows():
+            doc = row.to_dict()
+            # 確保日期被正確序列化
+            doc['date'] = doc['date'].to_pydatetime()
+            operations.append(UpdateOne({'date': doc['date']}, {'$set': doc}, upsert=True))
+        
         try:
-            result = collection.insert_many(data_dict)
-            print(f"成功插入 {len(result.inserted_ids)} 條文檔")
+            result = collection.bulk_write(operations)
+            print(f"成功插入 {result.upserted_count} 條文檔")
+        except BulkWriteError as bwe:
+            print(f"部分插入失敗: {bwe.details}")
         except Exception as e:
             print(f"插入數據時發生錯誤: {e}")
 
@@ -96,7 +107,7 @@ class FuturesDataModel:
 
         try:
             result = collection.insert_one(data)
-            print(f"成功插入 {len(result.inserted_ids)} 條文檔")
+            print(f"成功插入 {result.inserted_id} 條文檔")
 
         except Exception as e:
             print(f"插入數據時發生錯誤: {e}")
