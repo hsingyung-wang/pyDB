@@ -8,6 +8,7 @@ from models import FuturesDataModel
 from headers import *
 from schema import *
 import json
+import re
 
 class FuturesDataController:
     def __init__(self):
@@ -114,7 +115,50 @@ class FuturesDataController:
         except Exception as e:
             print(f"抓取數據時發生錯誤：{e}")
             return None
-        
+
+    """
+    期交所：期貨大額交易人未沖銷部位
+    date = 2024/01/01
+    queryDate = 2024/01/01
+    """
+    def crawler_taifex_largetrader(sef,date:str="2024/01/01"):
+        url = "https://www.taifex.com.tw/cht/3/largeTraderFutQry"
+        params = {
+            'queryDate' : date,
+            'contractId' : 'TX' #指抓臺股期貨
+        }
+
+        try:
+            response = requests.post(url,data=params, headers = TAIFEX_DOWN)
+            response.raise_for_status()
+
+            if "日期" not in response.text or "契約名稱" not in response.text:
+                print("響應中沒有找到預期的數據")
+                return None
+            if "查無資料" in response.text:
+                print("查無資料")
+                return None
+            print("爬取成功")
+            soup = BeautifulSoup(response.content,'html.parser')
+            table = soup.table
+            df = pd.read_html(StringIO(str(table)))
+            df = df[0]
+            df.columns =['契約名稱','到期月份（週別)','五大買方部位','五大買方百分比','十大買方部位','十大部位百分比','五大賣方部位','五大賣方百分比','十大賣方部位','十大賣方部位百分比','全市場未沖銷部位']
+
+            #移除括弧內的數字
+            def remove_parentheses(value):
+                if isinstance(value, str):
+                    return re.sub(r'\s*\([^)]*\)', '', value)
+                return value
+            df = df.applymap(remove_parentheses)
+
+            return df
+
+        except Exception as e:
+            print(f"抓取數據時發生錯誤：{e}")
+            return None
+
+
 
     """
     證交所：每日加權指數每日價格
@@ -257,7 +301,9 @@ class FuturesDataController:
             print(f"抓取數據時發生錯誤：{e}")
             return None
     
-
+    """
+    
+    """
 
 
 
@@ -359,4 +405,15 @@ class FuturesDataController:
         finally:
             self.model.close_mongo()
      
-    
+    def update_taifex_largetrader(self,date):
+        df_data = self.crawler_taifex_largetrader
+
+        if df_data is None or df_data.empty:
+           return "data1無法獲取證交所數據或數據為空"
+        
+        #轉成MongoDB格式
+        data = {
+            "date":datetime.strptime(date,"%Y/%m/%d"),
+            "期貨契約":[]
+        }
+
