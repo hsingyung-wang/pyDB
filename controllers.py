@@ -281,7 +281,7 @@ class FuturesDataController:
         }
 
         try:
-            response = requests.get(url,data=prams,headers=TWSE_DOWN)
+            response = requests.get(url,data=params,headers=TWSE_DOWN)
             data = json.loads(response.text)
             columns = data['fields']
             rows = data['data']
