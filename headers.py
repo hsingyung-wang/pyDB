@@ -37,15 +37,15 @@ TAIFEX_DOWN = {
 
 TWSE_DOWN = {
     'Accept': 'application/json, text/javascript, */*; q=0.01',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+    #'Accept-Encoding': 'gzip, deflate, br, zstd',
+    'Accept-Language': 'en-US,en;q=0.9,zh-TW;q=0.8,zh;q=0.7,en-GB;q=0.6,zh-HK;q=0.5,zh-CN;q=0.4',
     'Connection': 'close',
     'Host': 'www.twse.com.tw',
-    'Referer': 'https://www.twse.com.tw/zh/page/trading/fund/BFI82U.html',
+    'Referer': 'https://www.twse.com.tw/zh/indices/taiex/mi-5min-hist.html',
     'Sec-Fetch-Dest': 'empty',
     'Sec-Fetch-Mode': 'cors',
     'Sec-Fetch-Site': 'same-origin',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.122 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
     'X-Requested-With': 'XMLHttpRequest'
     }
 

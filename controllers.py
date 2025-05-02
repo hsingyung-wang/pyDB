@@ -58,7 +58,7 @@ class FuturesDataController:
                                '交易淨金額', '多方未平倉口數', '多方未平倉金額', '空方未平倉口數', '空方未平倉金額', 
                                '未平倉淨口數', '未平倉淨金額']
             # 對每一列進行處理-轉化成數字
-            
+            print(numeric_columns)
             for col in numeric_columns:
                 df_filter[col] = pd.to_numeric(df_filter[col].astype(str).str.replace(',', ''), errors='coerce')
             print("轉換成功")
